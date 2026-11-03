@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台北榮總/天母/北投區域 停車場智慧試算與排序系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #F8F6F2;
+            color: #2D3748;
+            line-height: 1.6;
+            letter-spacing: 0.01em;
+        }
+
+        .hipster-card {
+            background: #FFFFFF;
+            border: 1px solid #EAE6DF;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px -5px rgba(45, 90, 39, 0.05), 0 4px 12px -2px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .hipster-card:hover {
+            box-shadow: 0 14px 35px -5px rgba(45, 90, 39, 0.08), 0 6px 16px -2px rgba(0, 0, 0, 0.03);
+        }
+
+        .hipster-card-subtle {
+            background: #FDFBF7;
+            border: 1px solid #F0ECE1;
+            border-radius: 16px;
+        }
+
+        .hipster-badge {
+            background-color: #F0EDE6;
+            color: #4A5568;
+            border: 1px solid #E2DDD3;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #F3EFE6;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #C8C1B4;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #A39B8B;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-16 custom-scrollbar selection:bg-emerald-200 selection:text-emerald-900">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        
+        <!-- Header & Context Dashboard -->
+        <header class="hipster-card p-6 sm:p-8 mb-8 relative overflow-hidden">
+            <div class="absolute -right-12 -top-12 w-56 h-56 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-12 -bottom-12 w-56 h-56 bg-amber-100/60 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2D5A27] to-[#3B7A57] flex items-center justify-center text-white text-2xl shadow-md shadow-emerald-900/10 shrink-0">
+                        <i class="fa-solid fa-square-p"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-[#2D5A27]">天母．北投．榮總特區</span>
+                            <span class="text-xs text-stone-400 font-medium">| 智慧比價工具</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-3xl font-black text-stone-800 tracking-tight">
+                            地下停車場即時試算與排序系統
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Clock & Status Indicators -->
+                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end">
+                    <div class="hipster-card-subtle px-4 py-2.5 flex items-center gap-3">
+                        <i class="fa-regular fa-clock text-[#3B7A57] text-xl"></i>
+                        <div>
+                            <div id="liveClock" class="text-base font-bold font-mono text-stone-800">----/--/-- --:--:--</div>
+                            <div class="text-[11px] text-stone-500 font-medium">當前系統即時時間</div>
+                        </div>
+                    </div>
+
+                    <div id="holidayBadge" class="px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 text-[#2D5A27]">
+                        <i class="fa-solid fa-calendar-check text-sm"></i>
+                        <span id="holidayBadgeText">一般平日</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-stone-200/60 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-stone-600 font-medium">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-600"></i> 未滿半小時以 30 分鐘計費</span>
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-600"></i> 日夜間時段自動切換</span>
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-600"></i> 平日上限封頂試算</span>
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- LEFT COLUMN: Control Panel & Lot List (4 cols) -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Input Controls Card -->
+                <section class="hipster-card p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-stone-800 flex items-center gap-2.5">
+                            <i class="fa-solid fa-sliders text-[#3B7A57]"></i> 停放時間設定
+                        </h2>
+                        <button onclick="resetToNow()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-rotate-left text-[10px]"></i> 重設當前
+                        </button>
+                    </div>
+
+                    <form id="parkingForm" onsubmit="event.preventDefault();" class="space-y-5">
+                        <!-- Entry Time -->
+                        <div>
+                            <label class="block text-xs font-bold text-stone-700 mb-1.5" for="entryTime">
+                                <i class="fa-solid fa-right-to-bracket text-emerald-600 mr-1"></i> 預計進場時間
+                            </label>
+                            <input type="datetime-local" id="entryTime" class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-3 text-sm font-semibold text-stone-800 focus:outline-none focus:border-[#2D5A27] focus:ring-2 focus:ring-emerald-600/10 transition shadow-sm">
+                        </div>
+
+                        <!-- Exit Time -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <label class="block text-xs font-bold text-stone-700" for="exitTime">
+                                    <i class="fa-solid fa-right-from-bracket text-amber-600 mr-1"></i> 預估離場時間
+                                </label>
+                                <span id="durationBadge" class="text-xs font-mono font-bold px-3 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                    預計 2.0 小時
+                                </span>
+                            </div>
+                            <input type="datetime-local" id="exitTime" class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-3 text-sm font-semibold text-stone-800 focus:outline-none focus:border-[#2D5A27] focus:ring-2 focus:ring-emerald-600/10 transition shadow-sm">
+                        </div>
+
+                        <!-- Quick Duration Selectors -->
+                        <div class="space-y-2 pt-1">
+                            <div class="text-xs font-bold text-stone-500">快速調整停放時數：</div>
+                            <div class="grid grid-cols-5 gap-1.5">
+                                <button type="button" onclick="setQuickDuration(0.5)" class="py-2 bg-stone-100 hover:bg-emerald-50 hover:text-[#2D5A27] text-stone-700 text-xs font-bold rounded-xl border border-stone-200 transition font-mono">0.5h</button>
+                                <button type="button" onclick="setQuickDuration(1)" class="py-2 bg-stone-100 hover:bg-emerald-50 hover:text-[#2D5A27] text-stone-700 text-xs font-bold rounded-xl border border-stone-200 transition font-mono">1h</button>
+                                <button type="button" onclick="setQuickDuration(2)" class="py-2 bg-stone-100 hover:bg-emerald-50 hover:text-[#2D5A27] text-stone-700 text-xs font-bold rounded-xl border border-stone-200 transition font-mono">2h</button>
+                                <button type="button" onclick="setQuickDuration(4)" class="py-2 bg-stone-100 hover:bg-emerald-50 hover:text-[#2D5A27] text-stone-700 text-xs font-bold rounded-xl border border-stone-200 transition font-mono">4h</button>
+                                <button type="button" onclick="setQuickDuration(8)" class="py-2 bg-stone-100 hover:bg-emerald-50 hover:text-[#2D5A27] text-stone-700 text-xs font-bold rounded-xl border border-stone-200 transition font-mono">8h</button>
+                            </div>
+                        </div>
+
+                        <!-- Billing Rule Box -->
+                        <div class="p-4 rounded-xl bg-[#F4F1EA] border border-[#E5E0D5] text-xs text-stone-700 space-y-1.5">
+                            <div class="font-bold flex items-center gap-1.5 text-[#2D5A27]">
+                                <i class="fa-solid fa-circle-info text-sm"></i> 核心計費規則說明
+                            </div>
+                            <p class="leading-relaxed text-stone-600">
+                                系統一律採用<strong>未滿半小時以半小時費用計價</strong>（一小時費率的半價）。若停車 40 分鐘，將自動進位以 2 個半小時 (1 hr) 計算。
+                            </p>
+                        </div>
+
+                        <!-- Holiday Eve / Extended Parking Toggle -->
+                        <div class="pt-3 border-t border-stone-200">
+                            <div class="flex items-center justify-between">
+                                <label for="eveToggle" class="text-xs font-bold text-amber-800 flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-umbrella-beach text-amber-600"></i> 啟用「假日前夕 / 連續停放」試算
+                                </label>
+                                <input type="checkbox" id="eveToggle" onchange="toggleEveSection()" class="w-4 h-4 text-[#2D5A27] bg-stone-100 border-stone-300 rounded focus:ring-emerald-600 cursor-pointer">
+                            </div>
+                            
+                            <div id="eveSection" class="hidden mt-3 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2">
+                                <p class="text-xs text-amber-900 leading-relaxed font-medium">
+                                    試算持續停放至下一個工作日 09:00 AM 時的各停車場累積總費用。
+                                </p>
+                                <div>
+                                    <label class="block text-xs font-bold text-stone-700 mb-1" for="nextWorkday">目標下一個工作日:</label>
+                                    <input type="date" id="nextWorkday" class="w-full bg-white border border-stone-300 rounded-lg px-3 py-1.5 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Managed Parking Lots List Card -->
+                <section class="hipster-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-base font-bold text-stone-800 flex items-center gap-2">
+                            <i class="fa-solid fa-square-parking text-[#3B7A57]"></i> 區域停車場列表 (<span id="lotCount" class="text-emerald-700">4</span>)
+                        </h2>
+                        <button onclick="openLotModal()" class="px-3 py-1.5 bg-[#2D5A27] hover:bg-[#23471f] text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> 新增停車場
+                        </button>
+                    </div>
+
+                    <div id="parkingLotMiniList" class="space-y-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Dynamic Lot Mini Cards -->
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- RIGHT COLUMN: Results, Ranking, Charts (8 cols) -->
+            <div class="lg:col-span-8 space-y-8">
+
+                <!-- Best Options Summary Cards -->
+                <section>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-black text-stone-800 flex items-center gap-2.5">
+                            <i class="fa-solid fa-trophy text-amber-500"></i> 最划算停車場推薦
+                        </h2>
+                        <span class="text-xs font-semibold text-stone-500">依精算總金額由低至高排序</span>
+                    </div>
+
+                    <div id="topRankingsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <!-- Top cards inserted via JS -->
+                    </div>
+                </section>
+
+                <!-- +-2 Hours Window Flexibility Analysis Section -->
+                <section class="hipster-card p-6 border border-emerald-900/10">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+                        <div>
+                            <h3 class="text-lg font-bold text-stone-800 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-simple text-[#2D5A27]"></i> 離場時間 ±2 小時彈性試算與甜蜜點
+                            </h3>
+                            <p class="text-xs font-medium text-stone-500 mt-1">對比 <span class="text-emerald-700 font-bold">第 1 名</span>、<span class="text-slate-700 font-bold">第 2 名</span> 與 <span class="text-amber-700 font-bold">第 3 名</span> 在提前或延後離場時的費用趨勢與排名變動</p>
+                        </div>
+
+                        <!-- Lot View Tab Filters -->
+                        <div class="flex items-center bg-[#F3EFE6] p-1 rounded-xl border border-stone-200 text-xs self-start md:self-auto font-bold">
+                            <button id="tab-all" onclick="setShiftTab('all')" class="px-3 py-1.5 rounded-lg text-stone-800 bg-white shadow-sm transition">前 3 名全覽</button>
+                            <button id="tab-0" onclick="setShiftTab(0)" class="px-3 py-1.5 rounded-lg text-stone-500 hover:text-stone-800 transition">僅第 1 名</button>
+                            <button id="tab-1" onclick="setShiftTab(1)" class="px-3 py-1.5 rounded-lg text-stone-500 hover:text-stone-800 transition">僅第 2 名</button>
+                            <button id="tab-2" onclick="setShiftTab(2)" class="px-3 py-1.5 rounded-lg text-stone-500 hover:text-stone-800 transition">僅第 3 名</button>
+                        </div>
+                    </div>
+
+                    <!-- Sweet Spot Dynamic Notice Banner -->
+                    <div id="sweetSpotAlert" class="hidden mb-5 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center justify-between shadow-sm">
+                        <div class="flex items-center gap-2.5">
+                            <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-white font-extrabold text-[10px] tracking-wider uppercase">Sweet Spot</span>
+                            <span id="sweetSpotText" class="font-bold text-stone-800">發現關鍵價格翻轉點！</span>
+                        </div>
+                        <i class="fa-solid fa-bolt text-amber-600 text-base"></i>
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div class="h-64 w-full bg-[#FDFBF7] rounded-2xl p-4 border border-stone-200/80">
+                        <canvas id="timeShiftChart"></canvas>
+                    </div>
+
+                    <!-- Shift Time Multi-Lot Grid Cards (-2h, -1h, 0h, +1h, +2h) -->
+                    <div id="timeShiftCards" class="grid grid-cols-1 sm:grid-cols-5 gap-3 mt-5">
+                        <!-- Dynamic time shift slots for Top 3 -->
+                    </div>
+                </section>
+
+                <!-- Eve of Holiday / Extended Parking Analysis Section -->
+                <section id="eveAnalysisContainer" class="hidden hipster-card p-6 border border-amber-300/60 bg-amber-50/20">
+                    <div class="flex items-center gap-3.5 mb-5">
+                        <div class="w-11 h-11 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-business-time"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-stone-800">假日前夕 / 長期連停至工作日分析</h3>
+                            <p class="text-xs font-medium text-stone-500">計算持續停放至下一個工作日 09:00 AM，各停車場的總金額排序</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-stone-200 bg-white">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-[#F8F6F2] text-stone-700 border-b border-stone-200 font-bold">
+                                <tr>
+                                    <th class="p-3.5">停車場名稱</th>
+                                    <th class="p-3.5">機制標籤</th>
+                                    <th class="p-3.5 text-right">當前預估費</th>
+                                    <th class="p-3.5 text-right text-amber-800 font-black">連停至工作日(09:00)</th>
+                                    <th class="p-3.5 text-center">差額</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eveAnalysisTableBody" class="divide-y divide-stone-100 text-stone-700">
+                                <!-- Eve calculation rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Detailed All Lots Comparison Table Card -->
+                <section class="hipster-card p-6">
+                    <h3 class="text-base font-bold text-stone-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-stone-500"></i> 全區停車場費用總覽與明細拆解
+                    </h3>
+                    
+                    <div class="overflow-x-auto rounded-xl border border-stone-200">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-[#F8F6F2] text-stone-700 font-bold border-b border-stone-200">
+                                <tr>
+                                    <th class="p-3.5">排名</th>
+                                    <th class="p-3.5">停車場名稱</th>
+                                    <th class="p-3.5">費率說明與標籤</th>
+                                    <th class="p-3.5 text-right">計費時數</th>
+                                    <th class="p-3.5 text-right">平均每小時</th>
+                                    <th class="p-3.5 text-right font-black">預估總費用</th>
+                                    <th class="p-3.5 text-center">明細</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fullComparisonTable" class="divide-y divide-stone-100 font-medium">
+                                <!-- Dynamic complete ranking rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Custom Parking Lot -->
+    <div id="lotModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl relative border border-stone-200">
+            <button onclick="closeLotModal()" class="absolute top-5 right-5 text-stone-400 hover:text-stone-800 text-xl transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h3 id="modalTitle" class="text-lg font-black text-stone-800 mb-5 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-[#2D5A27]"></i> 新增 / 編輯停車場規則
+            </h3>
+
+            <form id="lotForm" onsubmit="saveLot(event)" class="space-y-4">
+                <input type="hidden" id="editLotId">
+
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 mb-1" for="lotName">停車場名稱</label>
+                    <input type="text" id="lotName" required placeholder="例如：新華公園地下停車場" class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="dayStart">白天起始點 (0-23)</label>
+                        <input type="number" id="dayStart" min="0" max="23" value="8" required class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="dayEnd">夜間起始點 (0-23)</label>
+                        <input type="number" id="dayEnd" min="0" max="23" value="23" required class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="weekdayDayRate">平日白天 ($/小時)</label>
+                        <input type="number" id="weekdayDayRate" min="0" required class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="weekdayNightRate">平日夜間 ($/小時)</label>
+                        <input type="number" id="weekdayNightRate" min="0" required class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="weekendDayRate">假日白天 ($/小時)</label>
+                        <input type="number" id="weekendDayRate" min="0" required class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="weekendNightRate">假日夜間 ($/小時)</label>
+                        <input type="number" id="weekendNightRate" min="0" required class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="weekdayCap">平日最高上限 ($/日, 0無)</label>
+                        <input type="number" id="weekdayCap" min="0" placeholder="0" class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-700 mb-1" for="weekendCap">假日最高上限 ($/日, 0無)</label>
+                        <input type="number" id="weekendCap" min="0" placeholder="0" class="w-full bg-[#FDFBF7] border border-stone-300 rounded-xl px-3.5 py-2 text-xs font-bold text-stone-800 focus:outline-none focus:border-[#2D5A27]">
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2 border-t border-stone-200">
+                    <button type="button" onclick="closeLotModal()" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition">取消</button>
+                    <button type="submit" class="px-5 py-2 bg-[#2D5A27] hover:bg-[#23471f] text-white text-xs font-bold rounded-xl transition shadow-sm">儲存資料</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Fee Calculation Breakdown Detail -->
+    <div id="detailModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl relative border border-stone-200">
+            <button onclick="closeDetailModal()" class="absolute top-5 right-5 text-stone-400 hover:text-stone-800 text-xl transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h3 id="detailLotName" class="text-base font-black text-stone-800 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-[#2D5A27]"></i> 計費區段明細與拆解
+            </h3>
+            <p id="detailSubTitle" class="text-xs text-stone-500 mb-4 font-medium"></p>
+
+            <div id="detailContent" class="space-y-3 text-xs max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                <!-- Breakdown dynamically added -->
+            </div>
+
+            <div class="pt-4 mt-4 border-t border-stone-200 flex justify-between items-center">
+                <span class="text-stone-600 text-xs font-bold">估算總費用：</span>
+                <span id="detailTotalFee" class="text-3xl font-black text-[#2D5A27] font-mono">$0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Javascript Calculation Engine & Interface Logic -->
+    <script>
+        // Preset default parking lots matching user image table specs exactly
+        const defaultLots = [
+            {
+                id: 'lot-zhenxing',
+                name: '振興公園地下停車場',
+                dayStart: 8,  // 08:00 - 23:00
+                dayEnd: 23,
+                weekdayDayRate: 50,
+                weekdayNightRate: 20,
+                weekendDayRate: 50,
+                weekendNightRate: 20,
+                weekdayCap: 0,
+                weekendCap: 0,
+                tags: ['白天 $50/h', '夜間 $20/h', '半小時 $25/$10']
+            },
+            {
+                id: 'lot-zhenhua',
+                name: '振華公園地下停車場',
+                dayStart: 0,
+                dayEnd: 24,
+                weekdayDayRate: 40,
+                weekdayNightRate: 40,
+                weekendDayRate: 40,
+                weekendNightRate: 40,
+                weekdayCap: 200, // 平日上限 200
+                weekendCap: 0,
+                tags: ['全時段 $40/h', '平日上限 $200', '半小時 $20']
+            },
+            {
+                id: 'lot-lanya',
+                name: '蘭雅公園地下停車場',
+                dayStart: 0,
+                dayEnd: 24,
+                weekdayDayRate: 30,
+                weekdayNightRate: 30,
+                weekendDayRate: 40,
+                weekendNightRate: 40,
+                weekdayCap: 0,
+                weekendCap: 0,
+                tags: ['平日 $30/h', '假日 $40/h', '半小時 $15/$20']
+            },
+            {
+                id: 'lot-vgh',
+                name: '台北榮總地下停車場',
+                dayStart: 7,  // 07:00 - 23:00
+                dayEnd: 23,
+                weekdayDayRate: 40,
+                weekdayNightRate: 20,
+                weekendDayRate: 40,
+                weekendNightRate: 20,
+                weekdayCap: 0,
+                weekendCap: 0,
+                tags: ['白天 $40/h', '夜間 $20/h', '半小時 $20/$10']
+            }
+        ];
+
+        let parkingLots = [];
+
+        const nationalHolidays2026 = [
+            '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20',
+            '2026-02-28', '2026-04-04', '2026-04-05', '2026-06-19', '2026-09-25', '2026-10-10'
+        ];
+
+        let timeChartInstance = null;
+        let activeShiftTab = 'all'; // 'all', 0, 1, 2
+        let currentCalculatedResults = [];
+        let currentEntryDate = null;
+        let currentExitDate = null;
+
+        window.onload = function() {
+            loadLotsFromStorage();
+            startClock();
+            initDateTimeInputs();
+            renderLotMiniList();
+            recalculateAll();
+        };
+
+        function loadLotsFromStorage() {
+            const saved = localStorage.getItem('vgh_parking_lots');
+            if (saved) {
+                try {
+                    parkingLots = JSON.parse(saved);
+                } catch(e) {
+                    parkingLots = [...defaultLots];
+                }
+            } else {
+                parkingLots = [...defaultLots];
+            }
+        }
+
+        function saveLotsToStorage() {
+            localStorage.setItem('vgh_parking_lots', JSON.stringify(parkingLots));
+        }
+
+        function startClock() {
+            function updateClock() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const date = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const mins = String(now.getMinutes()).padStart(2, '0');
+                const secs = String(now.getSeconds()).padStart(2, '0');
+                document.getElementById('liveClock').innerText = `${year}/${month}/${date} ${hours}:${mins}:${secs}`;
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        function toDatetimeLocalString(date) {
+            const ten = (i) => (i < 10 ? '0' : '') + i;
+            return date.getFullYear() + '-' +
+                ten(date.getMonth() + 1) + '-' +
+                ten(date.getDate()) + 'T' +
+                ten(date.getHours()) + ':' +
+                ten(date.getMinutes());
+        }
+
+        function initDateTimeInputs() {
+            const now = new Date();
+            const defaultExit = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+            const entryInput = document.getElementById('entryTime');
+            const exitInput = document.getElementById('exitTime');
+
+            entryInput.value = toDatetimeLocalString(now);
+            exitInput.value = toDatetimeLocalString(defaultExit);
+
+            entryInput.addEventListener('change', () => {
+                checkHolidayStatus();
+                recalculateAll();
+            });
+            exitInput.addEventListener('change', recalculateAll);
+
+            // Default next workday calculation (09:00 AM)
+            const nextDay = new Date(now);
+            nextDay.setDate(nextDay.getDate() + 1);
+            while (isWeekendOrHoliday(nextDay)) {
+                nextDay.setDate(nextDay.getDate() + 1);
+            }
+            const dateStr = nextDay.toISOString().split('T')[0];
+            document.getElementById('nextWorkday').value = dateStr;
+            document.getElementById('nextWorkday').addEventListener('change', recalculateAll);
+
+            checkHolidayStatus();
+        }
+
+        function resetToNow() {
+            const now = new Date();
+            const exit = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+            document.getElementById('entryTime').value = toDatetimeLocalString(now);
+            document.getElementById('exitTime').value = toDatetimeLocalString(exit);
+            checkHolidayStatus();
+            recalculateAll();
+        }
+
+        function setQuickDuration(hours) {
+            const entryInput = document.getElementById('entryTime');
+            const exitInput = document.getElementById('exitTime');
+            let entryDate = new Date(entryInput.value);
+            if (isNaN(entryDate.getTime())) entryDate = new Date();
+
+            const exitDate = new Date(entryDate.getTime() + hours * 60 * 60 * 1000);
+            exitInput.value = toDatetimeLocalString(exitDate);
+            recalculateAll();
+        }
+
+        function isWeekendOrHoliday(date) {
+            const day = date.getDay();
+            if (day === 0 || day === 6) return true;
+            const dateStr = date.toISOString().split('T')[0];
+            return nationalHolidays2026.includes(dateStr);
+        }
+
+        function isEveOfHoliday(date) {
+            const nextDay = new Date(date);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const dateStr = nextDay.toISOString().split('T')[0];
+            return nationalHolidays2026.includes(dateStr) || (nextDay.getDay() === 6 && date.getDay() === 5);
+        }
+
+        function checkHolidayStatus() {
+            const entryVal = document.getElementById('entryTime').value;
+            if (!entryVal) return;
+            const entryDate = new Date(entryVal);
+
+            const badge = document.getElementById('holidayBadge');
+            const badgeText = document.getElementById('holidayBadgeText');
+            const eveToggle = document.getElementById('eveToggle');
+
+            const isEve = isEveOfHoliday(entryDate);
+            const isHoliday = isWeekendOrHoliday(entryDate);
+
+            if (isEve) {
+                badge.className = "px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 bg-amber-100 border border-amber-300 text-amber-900 shadow-sm animate-pulse";
+                badgeText.innerText = "國定假日前夕 / 週末前夕";
+                if (!eveToggle.checked) {
+                    eveToggle.checked = true;
+                    toggleEveSection();
+                }
+            } else if (isHoliday) {
+                badge.className = "px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 bg-stone-200 border border-stone-300 text-stone-800";
+                badgeText.innerText = "週末 / 國定假日";
+            } else {
+                badge.className = "px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-[#2D5A27]";
+                badgeText.innerText = "一般平日";
+            }
+        }
+
+        function toggleEveSection() {
+            const toggle = document.getElementById('eveToggle');
+            const section = document.getElementById('eveSection');
+            const eveContainer = document.getElementById('eveAnalysisContainer');
+
+            if (toggle.checked) {
+                section.classList.remove('hidden');
+                eveContainer.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+                eveContainer.classList.add('hidden');
+            }
+            recalculateAll();
+        }
+
+        /**
+         * Core Billing Algorithm: 30-minute block precision
+         */
+        function calculateParkingFee(lot, entryDate, exitDate) {
+            if (exitDate <= entryDate) {
+                return { totalFee: 0, exactHours: 0, billableHours: 0, dayHours: 0, nightHours: 0, cappedDays: 0 };
+            }
+
+            const totalDiffMs = exitDate.getTime() - entryDate.getTime();
+            const exactHours = totalDiffMs / (1000 * 60 * 60);
+
+            // Total 30-min blocks (rounded up to nearest integer)
+            const total30MinBlocks = Math.ceil(totalDiffMs / (1000 * 60 * 30));
+            const billableHours = total30MinBlocks * 0.5;
+
+            let totalFee = 0;
+            let day30MinCount = 0;
+            let night30MinCount = 0;
+            let cappedDaysCount = 0;
+
+            let currentBlockStart = new Date(entryDate.getTime());
+            let dailyAccumulated = 0;
+            let currentDayStr = currentBlockStart.toDateString();
+
+            for (let i = 0; i < total30MinBlocks; i++) {
+                if (currentBlockStart.toDateString() !== currentDayStr) {
+                    currentDayStr = currentBlockStart.toDateString();
+                    dailyAccumulated = 0;
+                }
+
+                const isWeekend = isWeekendOrHoliday(currentBlockStart);
+                const hourOfDay = currentBlockStart.getHours();
+
+                let isDaytime = false;
+                if (lot.dayStart < lot.dayEnd) {
+                    isDaytime = (hourOfDay >= lot.dayStart && hourOfDay < lot.dayEnd);
+                } else {
+                    isDaytime = (hourOfDay >= lot.dayStart || hourOfDay < lot.dayEnd);
+                }
+
+                let hourlyRate = isWeekend ? 
+                    (isDaytime ? lot.weekendDayRate : lot.weekendNightRate) : 
+                    (isDaytime ? lot.weekdayDayRate : lot.weekdayNightRate);
+
+                let halfHourRate = hourlyRate / 2;
+
+                if (isDaytime) day30MinCount++;
+                else night30MinCount++;
+
+                const maxCap = isWeekend ? lot.weekendCap : lot.weekdayCap;
+
+                if (maxCap > 0 && (dailyAccumulated + halfHourRate) > maxCap) {
+                    let allowedContribution = Math.max(0, maxCap - dailyAccumulated);
+                    totalFee += allowedContribution;
+                    dailyAccumulated = maxCap;
+                    if (allowedContribution > 0) cappedDaysCount++;
+                } else {
+                    totalFee += halfHourRate;
+                    dailyAccumulated += halfHourRate;
+                }
+
+                currentBlockStart = new Date(currentBlockStart.getTime() + 30 * 60 * 1000);
+            }
+
+            return {
+                totalFee: Math.round(totalFee),
+                exactHours: parseFloat(exactHours.toFixed(2)),
+                billableHours: billableHours,
+                dayHours: day30MinCount * 0.5,
+                nightHours: night30MinCount * 0.5,
+                avgHourlyRate: exactHours > 0 ? Math.round(totalFee / exactHours) : 0
+            };
+        }
+
+        function recalculateAll() {
+            const entryVal = document.getElementById('entryTime').value;
+            const exitVal = document.getElementById('exitTime').value;
+
+            if (!entryVal || !exitVal) return;
+
+            const entryDate = new Date(entryVal);
+            const exitDate = new Date(exitVal);
+
+            if (isNaN(entryDate.getTime()) || isNaN(exitDate.getTime())) return;
+
+            currentEntryDate = entryDate;
+            currentExitDate = exitDate;
+
+            const diffMinutes = Math.max(0, Math.round((exitDate - entryDate) / (1000 * 60)));
+            const durationHours = (diffMinutes / 60).toFixed(1);
+            document.getElementById('durationBadge').innerText = `預計 ${durationHours} 小時 (${Math.ceil(diffMinutes/30)*0.5}h計價)`;
+
+            const results = parkingLots.map(lot => {
+                const calc = calculateParkingFee(lot, entryDate, exitDate);
+                return {
+                    lot: lot,
+                    ...calc
+                };
+            });
+
+            results.sort((a, b) => a.totalFee - b.totalFee);
+            currentCalculatedResults = results;
+
+            renderTopRankings(results);
+            renderFullTable(results);
+            renderTimeShiftAnalysis(entryDate, exitDate, results);
+
+            if (document.getElementById('eveToggle').checked) {
+                renderEveAnalysis(entryDate);
+            }
+        }
+
+        function renderTopRankings(results) {
+            const container = document.getElementById('topRankingsGrid');
+            container.innerHTML = '';
+
+            const top3 = results.slice(0, 3);
+            const badgeColors = [
+                { border: 'border-emerald-600/30', bg: 'bg-emerald-50', text: 'text-[#2D5A27]', badge: 'bg-[#2D5A27] text-white', title: '🥇 首選最划算' },
+                { border: 'border-slate-300', bg: 'bg-slate-50', text: 'text-slate-700', badge: 'bg-slate-700 text-white', title: '🥈 次優選擇' },
+                { border: 'border-amber-300', bg: 'bg-amber-50', text: 'text-amber-800', badge: 'bg-amber-600 text-white', title: '🥉 備選方案' }
+            ];
+
+            top3.forEach((item, idx) => {
+                const style = badgeColors[idx] || badgeColors[2];
+                const card = document.createElement('div');
+                card.className = `hipster-card p-5 border-2 ${style.border} flex flex-col justify-between relative overflow-hidden`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="px-3 py-1 rounded-full text-xs font-black tracking-wide ${style.badge}">
+                                ${style.title}
+                            </span>
+                            <span class="text-xs font-bold font-mono text-stone-400">#${idx + 1} 推薦</span>
+                        </div>
+                        
+                        <h3 class="text-base font-black text-stone-800 mb-2">${item.lot.name}</h3>
+                        
+                        <div class="flex flex-wrap gap-1.5 mb-4">
+                            ${(item.lot.tags || []).map(t => `<span class="px-2 py-0.5 bg-[#F3EFE6] text-stone-700 text-[11px] font-bold rounded-md border border-stone-200">${t}</span>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-stone-200/80 flex items-baseline justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-stone-500">計費時數: ${item.billableHours}h</div>
+                            <div class="text-[11px] font-bold text-stone-400">均價: $${item.avgHourlyRate}/h</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-3xl font-black font-mono ${style.text}">$${item.totalFee}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function setShiftTab(tab) {
+            activeShiftTab = tab;
+            ['all', 0, 1, 2].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (!btn) return;
+                if (t === tab) {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-stone-800 bg-white shadow-sm transition';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-stone-500 hover:text-stone-800 transition';
+                }
+            });
+
+            if (currentEntryDate && currentExitDate && currentCalculatedResults.length > 0) {
+                renderTimeShiftAnalysis(currentEntryDate, currentExitDate, currentCalculatedResults);
+            }
+        }
+
+        function renderTimeShiftAnalysis(entryDate, exitDate, results) {
+            if (!results || results.length === 0) return;
+
+            const top3Lots = results.slice(0, 3).map(r => r.lot);
+            if (top3Lots.length === 0) return;
+
+            const offsets = [-2, -1, 0, 1, 2];
+
+            const shiftData = offsets.map(offsetHours => {
+                const shiftedExit = new Date(exitDate.getTime() + offsetHours * 60 * 60 * 1000);
+                
+                const lotResults = top3Lots.map((lot, idx) => {
+                    const res = calculateParkingFee(lot, entryDate, shiftedExit);
+                    return {
+                        rankIndex: idx,
+                        lotId: lot.id,
+                        lotName: lot.name,
+                        fee: res.totalFee
+                    };
+                });
+
+                const sortedLocal = [...lotResults].sort((a, b) => a.fee - b.fee);
+
+                return {
+                    offset: offsetHours,
+                    exitTime: shiftedExit,
+                    lots: lotResults,
+                    localCheapestLot: sortedLocal[0]
+                };
+            });
+
+            // Sweet Spot Detection
+            const baseData = shiftData.find(d => d.offset === 0);
+            const sweetAlert = document.getElementById('sweetSpotAlert');
+            let sweetMessage = '';
+
+            shiftData.forEach(sd => {
+                if (sd.offset !== 0) {
+                    if (sd.lots[1] && sd.lots[1].fee < sd.lots[0].fee) {
+                        sweetMessage = `離場時間 ${sd.offset > 0 ? '+' : ''}${sd.offset}h (${sd.exitTime.getHours().toString().padStart(2,'0')}:${sd.exitTime.getMinutes().toString().padStart(2,'0')})：【${sd.lots[1].lotName}】($${sd.lots[1].fee}) 逆襲成為最省錢選擇！`;
+                    } else if (sd.lots[2] && sd.lots[2].fee < sd.lots[0].fee) {
+                        sweetMessage = `離場時間 ${sd.offset > 0 ? '+' : ''}${sd.offset}h：【${sd.lots[2].lotName}】($${sd.lots[2].fee}) 逆襲成為最省錢選擇！`;
+                    }
+                }
+            });
+
+            if (!sweetMessage) {
+                const minus1 = shiftData.find(d => d.offset === -1);
+                if (minus1 && baseData.lots[0].fee - minus1.lots[0].fee >= 20) {
+                    sweetMessage = `提前 1 小時離場，【${baseData.lots[0].lotName}】可為您省下 $${baseData.lots[0].fee - minus1.lots[0].fee} 元！`;
+                }
+            }
+
+            if (sweetMessage) {
+                sweetAlert.classList.remove('hidden');
+                document.getElementById('sweetSpotText').innerText = sweetMessage;
+            } else {
+                sweetAlert.classList.add('hidden');
+            }
+
+            // Render Shift Cards
+            const container = document.getElementById('timeShiftCards');
+            container.innerHTML = '';
+
+            const lotStyles = [
+                { color: 'text-[#2D5A27]', badge: 'bg-emerald-100 text-[#2D5A27]' },
+                { color: 'text-slate-700', badge: 'bg-slate-200 text-slate-800' },
+                { color: 'text-amber-800', badge: 'bg-amber-100 text-amber-900' }
+            ];
+
+            shiftData.forEach(item => {
+                const isCurrent = item.offset === 0;
+                const card = document.createElement('div');
+                card.className = `p-3.5 rounded-2xl ${isCurrent ? 'bg-amber-50/60 border-2 border-amber-400 shadow-md' : 'bg-white border border-stone-200'} text-xs flex flex-col justify-between`;
+
+                const timeStr = item.exitTime.getHours().toString().padStart(2, '0') + ':' + item.exitTime.getMinutes().toString().padStart(2, '0');
+                const offsetLabel = item.offset === 0 ? '原設定 0h' : (item.offset > 0 ? `+${item.offset}h` : `${item.offset}h`);
+
+                let displayedLots = item.lots;
+                if (activeShiftTab !== 'all') {
+                    displayedLots = item.lots.filter((_, idx) => idx === activeShiftTab);
+                }
+
+                const isRankFlipped = item.localCheapestLot.rankIndex !== 0;
+
+                let lotRowsHtml = displayedLots.map(l => {
+                    const style = lotStyles[l.rankIndex] || lotStyles[2];
+                    const isLocalCheapest = (l.rankIndex === item.localCheapestLot.rankIndex);
+
+                    return `
+                        <div class="flex items-center justify-between text-[11px] py-1.5 border-t border-stone-100">
+                            <span class="text-stone-700 font-bold truncate max-w-[85px]" title="${l.lotName}">
+                                <span class="${style.color}">#${l.rankIndex + 1}</span> ${l.lotName.replace('地下停車場', '')}
+                            </span>
+                            <div class="flex items-center gap-1">
+                                ${isLocalCheapest && isRankFlipped ? '<span class="text-[9px] font-black px-1 bg-amber-200 text-amber-900 rounded">超車</span>' : ''}
+                                <span class="font-mono font-black ${style.color} text-sm">$${l.fee}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="mb-2 pb-1.5 border-b border-stone-200 flex items-center justify-between">
+                        <span class="text-xs font-black ${isCurrent ? 'text-amber-900' : 'text-stone-800'}">${offsetLabel}</span>
+                        <span class="text-[10px] font-mono font-bold text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-md">${timeStr}</span>
+                    </div>
+                    <div class="space-y-0.5">
+                        ${lotRowsHtml}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            updateChart(shiftData, top3Lots);
+        }
+
+        function updateChart(shiftData, top3Lots) {
+            const ctx = document.getElementById('timeShiftChart').getContext('2d');
+            
+            const labels = shiftData.map(d => {
+                const t = d.exitTime;
+                const timeStr = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+                return `${d.offset > 0 ? '+' + d.offset : d.offset}h (${timeStr})`;
+            });
+
+            const lotConfigs = [
+                { label: `第1名: ${top3Lots[0]?.name.replace('地下停車場', '') || ''}`, bg: '#2D5A27', border: '#23471f' },
+                { label: `第2名: ${top3Lots[1]?.name.replace('地下停車場', '') || ''}`, bg: '#475569', border: '#334155' },
+                { label: `第3名: ${top3Lots[2]?.name.replace('地下停車場', '') || ''}`, bg: '#D97706', border: '#b45309' }
+            ];
+
+            let datasets = [];
+
+            if (activeShiftTab === 'all') {
+                datasets = [0, 1, 2].filter(idx => top3Lots[idx]).map(idx => ({
+                    label: lotConfigs[idx].label,
+                    data: shiftData.map(d => d.lots[idx]?.fee || 0),
+                    backgroundColor: lotConfigs[idx].bg,
+                    borderColor: lotConfigs[idx].border,
+                    borderWidth: 1,
+                    borderRadius: 6
+                }));
+            } else {
+                const idx = activeShiftTab;
+                if (top3Lots[idx]) {
+                    datasets = [{
+                        label: lotConfigs[idx].label,
+                        data: shiftData.map(d => d.lots[idx]?.fee || 0),
+                        backgroundColor: lotConfigs[idx].bg,
+                        borderColor: lotConfigs[idx].border,
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }];
+                }
+            }
+
+            if (timeChartInstance) {
+                timeChartInstance.destroy();
+            }
+
+            timeChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#4A5568',
+                                font: { size: 12, weight: '700' },
+                                boxWidth: 14,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1A202C',
+                            titleColor: '#FFFFFF',
+                            bodyColor: '#E2E8F0',
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: $${context.raw}元`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            ticks: { color: '#718096', font: { size: 11, weight: '600' } }, 
+                            grid: { display: false } 
+                        },
+                        y: { 
+                            ticks: { color: '#718096', font: { size: 11, weight: '600' } }, 
+                            grid: { color: '#E2E8F0' } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderEveAnalysis(entryDate) {
+            const tbody = document.getElementById('eveAnalysisTableBody');
+            tbody.innerHTML = '';
+
+            const exitVal = document.getElementById('exitTime').value;
+            const currentExit = new Date(exitVal);
+
+            const targetWorkdayVal = document.getElementById('nextWorkday').value;
+            if (!targetWorkdayVal) return;
+
+            const nextWorkdayExit = new Date(`${targetWorkdayVal}T09:00:00`);
+
+            parkingLots.forEach(lot => {
+                const currentRes = calculateParkingFee(lot, entryDate, currentExit);
+                const nextWorkdayRes = calculateParkingFee(lot, entryDate, nextWorkdayExit);
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-stone-50 transition';
+
+                const diff = nextWorkdayRes.totalFee - currentRes.totalFee;
+
+                row.innerHTML = `
+                    <td class="p-3.5 font-bold text-stone-800">${lot.name}</td>
+                    <td class="p-3.5 text-stone-600 text-[11px]">
+                        ${(lot.tags || []).map(t => `<span class="px-1.5 py-0.5 bg-stone-100 text-stone-700 rounded border border-stone-200 mr-1 font-semibold">${t}</span>`).join('')}
+                    </td>
+                    <td class="p-3.5 text-right font-mono font-bold text-stone-600">$${currentRes.totalFee}</td>
+                    <td class="p-3.5 text-right font-mono font-black text-amber-900 text-sm">$${nextWorkdayRes.totalFee}</td>
+                    <td class="p-3.5 text-center">
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-[#2D5A27] font-mono font-bold text-xs">
+                            +$${diff}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderFullTable(results) {
+            const tbody = document.getElementById('fullComparisonTable');
+            tbody.innerHTML = '';
+
+            results.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-stone-50 transition';
+
+                let rankBadgeClass = 'bg-stone-100 text-stone-600';
+                if (index === 0) rankBadgeClass = 'bg-emerald-100 text-[#2D5A27] font-black';
+                else if (index === 1) rankBadgeClass = 'bg-slate-200 text-slate-800 font-bold';
+
+                row.innerHTML = `
+                    <td class="p-3.5">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-mono ${rankBadgeClass}">
+                            #${index + 1}
+                        </span>
+                    </td>
+                    <td class="p-3.5 font-bold text-stone-800">${item.lot.name}</td>
+                    <td class="p-3.5 text-stone-500 text-[11px]">
+                        ${(item.lot.tags || []).map(t => `<span class="px-1.5 py-0.5 bg-[#F3EFE6] text-stone-700 rounded border border-stone-200 mr-1 font-bold">${t}</span>`).join('')}
+                    </td>
+                    <td class="p-3.5 text-right font-mono font-bold text-stone-700">${item.billableHours} h</td>
+                    <td class="p-3.5 text-right font-mono font-semibold text-stone-500">$${item.avgHourlyRate}/h</td>
+                    <td class="p-3.5 text-right font-mono text-base font-black text-[#2D5A27]">$${item.totalFee}</td>
+                    <td class="p-3.5 text-center">
+                        <button onclick="showDetail('${item.lot.id}')" class="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg transition font-bold text-xs">
+                            明細
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderLotMiniList() {
+            const container = document.getElementById('parkingLotMiniList');
+            document.getElementById('lotCount').innerText = parkingLots.length;
+            container.innerHTML = '';
+
+            parkingLots.forEach(lot => {
+                const item = document.createElement('div');
+                item.className = 'p-3.5 rounded-xl bg-white border border-stone-200 flex items-center justify-between text-xs hover:border-stone-300 transition shadow-sm';
+                
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-stone-800 mb-1 text-xs">${lot.name}</div>
+                        <div class="flex flex-wrap gap-1">
+                            ${(lot.tags || []).map(t => `<span class="px-1.5 py-0.5 bg-[#F3EFE6] text-stone-600 text-[10px] font-bold rounded border border-stone-200">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 ml-2">
+                        <button onclick="editLot('${lot.id}')" class="p-2 text-stone-400 hover:text-stone-800 transition">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button onclick="deleteLot('${lot.id}')" class="p-2 text-stone-400 hover:text-rose-600 transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function openLotModal() {
+            document.getElementById('editLotId').value = '';
+            document.getElementById('lotForm').reset();
+            document.getElementById('modalTitle').innerText = '新增自訂停車場';
+            document.getElementById('lotModal').classList.remove('hidden');
+        }
+
+        function closeLotModal() {
+            document.getElementById('lotModal').classList.add('hidden');
+        }
+
+        function editLot(id) {
+            const lot = parkingLots.find(l => l.id === id);
+            if (!lot) return;
+
+            document.getElementById('editLotId').value = lot.id;
+            document.getElementById('lotName').value = lot.name;
+            document.getElementById('dayStart').value = lot.dayStart;
+            document.getElementById('dayEnd').value = lot.dayEnd;
+            document.getElementById('weekdayDayRate').value = lot.weekdayDayRate;
+            document.getElementById('weekdayNightRate').value = lot.weekdayNightRate;
+            document.getElementById('weekendDayRate').value = lot.weekendDayRate;
+            document.getElementById('weekendNightRate').value = lot.weekendNightRate;
+            document.getElementById('weekdayCap').value = lot.weekdayCap || '';
+            document.getElementById('weekendCap').value = lot.weekendCap || '';
+
+            document.getElementById('modalTitle').innerText = '編輯停車場規則';
+            document.getElementById('lotModal').classList.remove('hidden');
+        }
+
+        function saveLot(e) {
+            e.preventDefault();
+            const id = document.getElementById('editLotId').value;
+            const name = document.getElementById('lotName').value;
+            const dayStart = parseInt(document.getElementById('dayStart').value);
+            const dayEnd = parseInt(document.getElementById('dayEnd').value);
+            const weekdayDayRate = parseFloat(document.getElementById('weekdayDayRate').value);
+            const weekdayNightRate = parseFloat(document.getElementById('weekdayNightRate').value);
+            const weekendDayRate = parseFloat(document.getElementById('weekendDayRate').value);
+            const weekendNightRate = parseFloat(document.getElementById('weekendNightRate').value);
+            const weekdayCap = parseFloat(document.getElementById('weekdayCap').value) || 0;
+            const weekendCap = parseFloat(document.getElementById('weekendCap').value) || 0;
+
+            const tags = [
+                `白天 $${weekdayDayRate}/h`,
+                `夜間 $${weekdayNightRate}/h`,
+                weekdayCap ? `平日上限$${weekdayCap}` : '無上限'
+            ];
+
+            if (id) {
+                const index = parkingLots.findIndex(l => l.id === id);
+                if (index !== -1) {
+                    parkingLots[index] = { id, name, dayStart, dayEnd, weekdayDayRate, weekdayNightRate, weekendDayRate, weekendNightRate, weekdayCap, weekendCap, tags };
+                }
+            } else {
+                const newId = 'lot-' + Date.now();
+                parkingLots.push({ id: newId, name, dayStart, dayEnd, weekdayDayRate, weekdayNightRate, weekendDayRate, weekendNightRate, weekdayCap, weekendCap, tags });
+            }
+
+            saveLotsToStorage();
+            closeLotModal();
+            renderLotMiniList();
+            recalculateAll();
+        }
+
+        function deleteLot(id) {
+            if (parkingLots.length <= 1) {
+                alert('請至少保留一個停車場！');
+                return;
+            }
+            parkingLots = parkingLots.filter(l => l.id !== id);
+            saveLotsToStorage();
+            renderLotMiniList();
+            recalculateAll();
+        }
+
+        function showDetail(lotId) {
+            const lot = parkingLots.find(l => l.id === lotId);
+            if (!lot) return;
+
+            const entryVal = document.getElementById('entryTime').value;
+            const exitVal = document.getElementById('exitTime').value;
+            const entryDate = new Date(entryVal);
+            const exitDate = new Date(exitVal);
+
+            const res = calculateParkingFee(lot, entryDate, exitDate);
+
+            document.getElementById('detailLotName').innerText = lot.name;
+            document.getElementById('detailSubTitle').innerText = `${entryVal.replace('T', ' ')} 至 ${exitVal.replace('T', ' ')}`;
+            document.getElementById('detailTotalFee').innerText = `$${res.totalFee}`;
+
+            const content = document.getElementById('detailContent');
+            content.innerHTML = `
+                <div class="p-4 bg-[#F8F6F2] rounded-xl space-y-2.5 border border-stone-200">
+                    <div class="flex justify-between text-stone-700">
+                        <span class="font-bold">實際停放時間:</span>
+                        <span class="font-mono font-bold text-stone-900">${res.exactHours} 小時</span>
+                    </div>
+                    <div class="flex justify-between text-stone-700">
+                        <span class="font-bold">計費單位時數 (滿 30 分進位):</span>
+                        <span class="font-mono text-[#2D5A27] font-black">${res.billableHours} 小時 (${res.billableHours * 2} 個 30 分鐘區塊)</span>
+                    </div>
+                    <div class="flex justify-between text-stone-700 border-t border-stone-200 pt-2">
+                        <span class="font-bold">包含白天時段 (0.5h 區塊):</span>
+                        <span class="font-mono text-amber-800 font-bold">${res.dayHours} 小時</span>
+                    </div>
+                    <div class="flex justify-between text-stone-700">
+                        <span class="font-bold">包含夜間時段 (0.5h 區塊):</span>
+                        <span class="font-mono text-stone-700 font-bold">${res.nightHours} 小時</span>
+                    </div>
+                    <div class="flex justify-between text-stone-700 border-t border-stone-200 pt-2">
+                        <span class="font-bold">當日上限機制:</span>
+                        <span class="font-mono ${lot.weekdayCap > 0 ? 'text-[#2D5A27] font-black' : 'text-stone-500'}">
+                            ${lot.weekdayCap > 0 ? `設有平日上限 $${lot.weekdayCap} 元` : '無每日上限'}
+                        </span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
